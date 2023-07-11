@@ -1,6 +1,12 @@
-MIT License
+# License
 
-Copyright (c) 2023 Yezz LLC. and individual contributors.
+<p>
+     <img align="right" src="https://i0.wp.com/opensource.org/wp-content/uploads/2023/03/cropped-OSI-horizontal-large.png">
+</p>
+
+The class is licensed under the [MIT License](https://opensource.org/licenses/mit)
+
+Copyright &copy; 2023 to present [Yezz LLC.](https://yezz.me) and individual contributors.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +25,5 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+---

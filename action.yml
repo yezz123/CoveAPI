@@ -90,7 +90,7 @@ runs:
                     COVEAPI_IS_MERGE="0"
                 fi
             fi
-            docker run --env COVEAPI_DEBUG="${{inputs.debug}}" --env COVEAPI_APP_BASE_URL="${COVEAPI_APP_BASE_URL/localhost/172.17.0.1}" --env COVEAPI_OPENAPI_SOURCE="${{inputs.openapi-source}}" --env COVEAPI_ACCOUNT_FOR_FORBIDDEN="${{inputs.account-for-security-forbidden}}" --env COVEAPI_ACCOUNT_FOR_UNAUTORIZED="${{inputs.account-for-security-unautorized}}" --env COVEAPI_TEST_COVERAGE="${{inputs.test-coverage}}" --env COVEAPI_PORT="${{inputs.port}}" --volume $PWD:/repo $COVEAPI_PORT --env COVEAPI_MAPPING="$COVEAPI_MAPPING" --env COVEAPI_IS_MERGE="$COVEAPI_IS_MERGE" --env COVEAPI_ONLY_ACCOUNT_MERGE="${{inputs.only-account-for-pr}}" --env COVEAPI_GROUPINGS="${{inputs.groupings}}" --network coveapi --name coveapi -d grossamos/coveapi:v1.0.0
+            docker run --env COVEAPI_DEBUG="${{inputs.debug}}" --env COVEAPI_APP_BASE_URL="${COVEAPI_APP_BASE_URL/localhost/172.17.0.1}" --env COVEAPI_OPENAPI_SOURCE="${{inputs.openapi-source}}" --env COVEAPI_ACCOUNT_FOR_FORBIDDEN="${{inputs.account-for-security-forbidden}}" --env COVEAPI_ACCOUNT_FOR_UNAUTORIZED="${{inputs.account-for-security-unautorized}}" --env COVEAPI_TEST_COVERAGE="${{inputs.test-coverage}}" --env COVEAPI_PORT="${{inputs.port}}" --volume $PWD:/repo $COVEAPI_PORT --env COVEAPI_MAPPING="$COVEAPI_MAPPING" --env COVEAPI_IS_MERGE="$COVEAPI_IS_MERGE" --env COVEAPI_ONLY_ACCOUNT_MERGE="${{inputs.only-account-for-pr}}" --env COVEAPI_GROUPINGS="${{inputs.groupings}}" --network coveapi --name coveapi -d yezz123/CoveAPI@v2.0.0
             sleep 1
             docker logs coveapi
             exit $(docker container inspect --format '{{.State.ExitCode}}' coveapi)

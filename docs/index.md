@@ -3,7 +3,7 @@
     <img src="https://raw.githubusercontent.com/yezz123/CoveAPI/main/docs/img/cover.png">
 </a>
 <p align="center">
-    <em>Ready-to-use OpenAPI test coverage analysis tool that helps teams improve integration</em>
+    <em>Ready-to-use OpenAPI Test coverage analysis tool that helps teams improve integration</em>
 </p>
 <p align="center">
 <a href="https://github.com/yezz123/CoveAPI/actions/workflows/ci.yml" target="_blank">
@@ -25,11 +25,25 @@ CoveAPI is an advanced test coverage analysis tool based on the OpenAPI standard
 
 With CoveAPI, teams can easily establish and enforce specific coverage thresholds, ensuring that critical parts of their application are thoroughly tested. By integrating CoveAPI into their existing CI/CD workflows, teams can automatically track and monitor test coverage metrics, making it easier to identify areas that require additional testing.
 
-## Help
+!!! Attention
+    CoveAPI does not support OpenAPI 3.x yet, but it will be supported in the future.
 
-See [documentation](https://coveapi.yezz.me/) for more details.
+## Installation
+
+You can use the Github Action to integrate CoveAPI into your CI/CD pipeline. See [Usage](#usage) for more details, or you can find it in Marketplace [CoveAPI](https://github.com/marketplace/coveapi)
 
 ## Usage
+
+### Prerequisites
+
+The following components are needed to get started using CoveAPI:
+
+1. A REST-based Web Application (e.g., a REST API using [FastAPI](https://fastapi.tiangolo.com/))
+2. An OpenAPI or Swagger specification for your application (e.g., `docs/swagger.yaml`)
+3. API integration tests in your CI/CD pipeline (e.g., [pytest](https://docs.pytest.org/en/6.2.x/))
+
+!!! note
+    CoveAPI Support all the Languages that have a OpenAPI or Swagger Specification
 
 ### Integrate CoveAPI into your CI/CD pipeline
 
@@ -76,7 +90,7 @@ This stage will fail if test coverage isn't met and can display additional infor
 
 ## Contributing
 
-For guidance on setting up a development environment and how to make a contribution to CoveAPI, see [Contributing to CoveAPI](https://coveapi.yezz.me/contributing).
+For guidance on setting up a development environment and how to make a contribution to CoveAPI, see [Contributing to CoveAPI](./contributing.md).
 
 ## Reporting a Security Vulnerability
 
