@@ -2,8 +2,8 @@ use std::{fmt::Display, process};
 
 use crate::config::CoveAPIConfig;
 
-pub fn print_debug_message<T: Display>(config: &CoveAPIConfig, debug_message: T) {
-    if config.is_debug() {
+pub fn print_debug_message<T: Display>(debug_message: T) {
+    if CoveAPIConfig::global_is_debug() {
         println!("{}", debug_message);
     }
 }
