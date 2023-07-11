@@ -15,7 +15,7 @@
     "paths": {
         "/": {
             "get": {
-                "description": "get information on coveapi example API",
+                "description": "get information on CoveAPI example API",
                 "produces": [
                     "application/json"
                 ],
