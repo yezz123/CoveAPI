@@ -1,0 +1,5 @@
+debug = true
+
+[environment]
+openapi_path = './dump/swagger.json'
+app_base_url = 'http://localhost:8080'

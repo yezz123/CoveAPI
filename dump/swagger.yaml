@@ -1,0 +1,72 @@
+basePath: /
+definitions:
+  controller.BaseResponse:
+    properties:
+      message:
+        type: string
+      status:
+        type: string
+    type: object
+  controller.IsValid:
+    properties:
+      valid:
+        type: boolean
+    type: object
+  controller.WeatherStatus:
+    properties:
+      status:
+        type: string
+    type: object
+  util.ErrorMessage:
+    properties:
+      message:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: This is a sample project for the coveapi test tool
+  license:
+    name: MIT
+    url: https://raw.githubusercontent.com/yezz123/coveapi/main/LICENSE
+  title: CoveAPI Example Project
+  version: "1.0"
+paths:
+  /:
+    get:
+      description: get information on coveapi example API
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.BaseResponse'
+      summary: provide basic info on this API
+  /validate:
+    post:
+      description: checks if a given state is a valid weather state
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.IsValid'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/util.ErrorMessage'
+      summary: validates weather state
+  /weather:
+    get:
+      description: gets current weather from a set of states
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/controller.WeatherStatus'
+      summary: provides current weather
+swagger: "2.0"
