@@ -1,9 +1,9 @@
-use std::{path::Path, process::Command};
+use std::process::{Command, Stdio};
 
-use config::{ConfigurationError, CoveAPIConfig};
-use evaluator::compare_endpoints;
-use models::Endpoint;
-use parser::{parse_openapi_json, ParsingError};
+use config::{configure_nginx, CoveAPIConfig};
+use evaluator::evaluate;
+use models::EndpointConfiguration;
+use parser::{get_openapi_endpoint_configs, get_pre_merge_openapi_endpoints};
 use utils::print_debug_message;
 
 use crate::{parser::parse_nginx_access_log, utils::print_error_and_exit};
@@ -15,12 +15,22 @@ pub mod parser;
 pub mod utils;
 
 pub fn run_nginx(config: &CoveAPIConfig) {
+    // insert application URL to nginx file
+    match configure_nginx(config) {
+        Ok(_) => (),
+        Err(error) => error.display_error_and_exit(),
+    }
+
     // spawn nginx as a subprocess
-    print_debug_message(config, "Starting nginx");
+    print_debug_message("Starting nginx");
     let mut nginx_cmd = Command::new("nginx");
     nginx_cmd.arg("-g").arg("daemon off;");
 
-    match nginx_cmd.status() {
+    if !config.debug {
+        nginx_cmd.stdout(Stdio::null());
+    }
+
+    match nginx_cmd.stdout(Stdio::null()).status() {
         Ok(status) => {
             if !status.success() {
                 print_error_and_exit("Error: Unexpected non-zero exit code from nginx");
@@ -32,46 +42,78 @@ pub fn run_nginx(config: &CoveAPIConfig) {
     }
 }
 
-pub fn initialize_coveapi() -> (CoveAPIConfig, Option<Vec<Endpoint>>) {
-    let config = match CoveAPIConfig::from_path(Path::new("./coveapi.toml")) {
+pub fn initialize_coveapi() -> (
+    CoveAPIConfig,
+    Vec<EndpointConfiguration>,
+    Option<Vec<EndpointConfiguration>>,
+) {
+    let config = match CoveAPIConfig::from_env() {
         Ok(config) => config,
-        Err(ConfigurationError::IssueOpeningFile) => {
-            print_error_and_exit("An issue opening configuration file (\"coveapi.toml\") occurred")
-        }
-        Err(ConfigurationError::IllegalSyntax(err)) => {
-            print_error_and_exit(format!("The configuration file syntax is invalid: {}", err))
-        }
+        Err(error) => error.display_error_and_exit(),
     };
 
-    let openapi_endpoints = match parse_openapi_json(config.environment.openapi_path.as_ref()) {
+    let openapi_endpoints = match get_openapi_endpoint_configs(&config) {
         Ok(openapi_endpoints) => openapi_endpoints,
-        Err(ParsingError::ProblemOpeningFile) => print_error_and_exit("An issue opening the openapi file occurred."),
-        Err(ParsingError::InvalidSyntax) => print_error_and_exit("The syntax of the openapi file is incorrect."),
-        Err(ParsingError::InvalidMethod) => print_error_and_exit("The openapi file contains an invalid method."),
-        Err(ParsingError::InvalidStatusCode) => {
-            print_error_and_exit("The openapi file contains an invalid status code.")
-        }
+        Err(error) => error.display_error_and_exit(),
     };
 
-    (config, Some(openapi_endpoints))
+    let mut pre_merge_endpoints = None;
+
+    // filter out impossible szenarios, where they require only_account_for_merge but nothing can
+    // be compared
+    if config.only_account_for_merge && !config.all_openapi_sources_are_paths() {
+        if config.is_merge {
+            print_error_and_exit("Your configuration contains a dynamically loaded openapi spec. CoveAPI needs it to be a local file when only accounting for the difference between commits.");
+        } else {
+            print_error_and_exit("You need to have two commits to compare (ex. pull/merge request) when only accounting for the difference between commits.");
+        }
+    }
+
+    // add pre_merge_endpoints is a merge is taking place
+    if config.is_merge && config.only_account_for_merge {
+        let mut endpoints = vec![];
+
+        for runtime in &config.runtimes {
+            let mut pre_merge_endpoints_of_runtime = match get_pre_merge_openapi_endpoints(runtime.clone()) {
+                Ok(endpoints) => endpoints,
+                Err(err) => err.display_error_and_exit(),
+            };
+            endpoints.append(&mut pre_merge_endpoints_of_runtime);
+        }
+        pre_merge_endpoints = Some(endpoints);
+    }
+    (config, openapi_endpoints, pre_merge_endpoints)
 }
 
-pub fn run_eval(config: CoveAPIConfig, openapi_endpoints: Option<Vec<Endpoint>>) {
-    print_debug_message(&config, "Evaluating endpoint coverage");
+pub fn run_eval(
+    config: &CoveAPIConfig,
+    openapi_endpoints: Vec<EndpointConfiguration>,
+    pre_merge_endpoints: Option<Vec<EndpointConfiguration>>,
+) {
+    print_debug_message("Evaluating endpoint coverage");
 
-    // TODO replace with dynamic fetch of spec
-    let openapi_endpoints = openapi_endpoints.unwrap();
-
-    let nginx_endpoints = match parse_nginx_access_log() {
+    let nginx_endpoints = match parse_nginx_access_log(&config.runtimes) {
         Ok(nginx_endpoints) => nginx_endpoints,
-        Err(_) => print_error_and_exit("An unexpected error occurred while parsing the nginx logs"),
+        Err(_) => print_error_and_exit("An unexpected error occured while parsing the nginx logs"),
     };
 
-    let endpoint_diff = compare_endpoints(&nginx_endpoints, &openapi_endpoints);
+    let evaluation = evaluate(
+        &openapi_endpoints,
+        &pre_merge_endpoints,
+        &nginx_endpoints,
+        &config.groupings,
+    );
 
-    if !endpoint_diff.len() == 0 {
-        print_error_and_exit("Not all endpoints were tested!");
-    } else {
-        println!("Coverage 100%");
+    if evaluation.has_gateway_issues {
+        println!("WARNING: an unusual amount of 502 status codes were found, your setup might have gateway issues.");
+    }
+
+    println!("Test Coverage: {}%", evaluation.test_coverage * 100.0);
+
+    if evaluation.endpoints_not_covered.len() > 0 {
+        println!("The following endpoints were missed:");
+        for endpoint in evaluation.endpoints_not_covered {
+            println!("- {} {} {}", endpoint.path, endpoint.method, endpoint.status_code);
+        }
     }
 }
