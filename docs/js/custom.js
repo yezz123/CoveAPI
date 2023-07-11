@@ -10,7 +10,7 @@ function setupTermynal() {
      const customPromptLiteralStart = "# ";
      const termynalActivateClass = "termy";
      let termynals = [];
- 
+
      function createTermynals() {
          document
              .querySelectorAll(`.${termynalActivateClass} .highlight`)
@@ -91,7 +91,7 @@ function setupTermynal() {
                  termynals.push(termynal);
              });
      }
- 
+
      function loadVisibleTermynals() {
          termynals = termynals.filter(termynal => {
              if (termynal.container.getBoundingClientRect().top - innerHeight <= 0) {
@@ -105,9 +105,9 @@ function setupTermynal() {
      createTermynals();
      loadVisibleTermynals();
  }
- 
+
  async function main() {
      setupTermynal();
  }
- 
+
  main()
