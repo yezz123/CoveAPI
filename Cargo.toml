@@ -11,8 +11,8 @@ readme = "README.md"
 lazy_static = "1.4.0"
 regex = "1.6"
 json = "0.12.4"
-url = {version = "2.2.2", features = ["serde"]}
-toml = "0.7.4"
-serde = {version = "1.0", features = ["derive"]}
-serde_derive = "1.0"
-url_serde = "0.2.0"
+url = "2.2.2"
+yaml-rust = "0.4"
+linked-hash-map = "0.5.6"
+float_eq = "1.0.0"
+reqwest = { version = "0.11", features = ["blocking", "json"], default-features = false }
