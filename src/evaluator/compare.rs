@@ -1,208 +1,228 @@
-use crate::models::Endpoint;
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+};
 
-pub fn compare_endpoints(set_a: &Vec<Endpoint>, set_b: &Vec<Endpoint>) -> Vec<Endpoint> {
-    let mut set_a = (*set_a).clone();
-    let mut set_b = (*set_b).clone();
-    set_a.sort();
-    set_b.sort();
+use crate::models::{EndpointConfiguration, Grouping};
 
-    filter_consecutive_duplicates(&mut set_a);
-    filter_consecutive_duplicates(&mut set_b);
+pub fn evaluate<'a>(
+    openapi_endpoints: &'a Vec<EndpointConfiguration>,
+    pre_merge_endpoints: &Option<Vec<EndpointConfiguration>>,
+    nginx_endpoints: &Vec<EndpointConfiguration>,
+    groupings: &HashSet<Grouping>,
+) -> Evaluation<'a> {
+    let mut grouping_endpoints: HashMap<&Grouping, Vec<RefCell<(&EndpointConfiguration, bool)>>> = HashMap::new();
+    for grouping in groupings {
+        grouping_endpoints.insert(grouping, vec![]);
+    }
 
-    let mut index_a = 0;
+    let mut unmatched_endpoints: Vec<RefCell<(&EndpointConfiguration, bool)>> = vec![];
+    let relevant_endpoints = get_endpoints_for_diff(pre_merge_endpoints, openapi_endpoints);
 
-    while index_a < set_a.len() {
-        let mut index_b = 0;
-        let item_a = set_a.get(index_a).unwrap();
-
-        let mut is_found = false;
-
-        while index_b < set_b.len() && item_a >= set_b.get(index_b).unwrap() {
-            let item_b = set_b.get(index_b).unwrap();
-
-            if item_a == item_b {
-                is_found = true;
-                set_b.remove(index_b);
-            } else {
-                index_b += 1;
+    for openapi_endpoint in &relevant_endpoints {
+        let mut has_group = false;
+        for grouping in grouping_endpoints.iter_mut() {
+            if grouping.0.incompases_endpoint_config(openapi_endpoint) {
+                has_group = true;
+                if grouping.1.len() >= 1 && grouping.1[0].borrow().1 {
+                    grouping.1.push(RefCell::new((openapi_endpoint, true)));
+                } else {
+                    if grouping.0.is_ignore_group {
+                        grouping.1.push(RefCell::new((openapi_endpoint, true)));
+                    } else if endpoint_incompases_any(openapi_endpoint, nginx_endpoints) {
+                        for endpoint in grouping.1.iter_mut() {
+                            let mut endpoint = endpoint.borrow_mut();
+                            endpoint.1 = true;
+                        }
+                        grouping.1.push(RefCell::new((openapi_endpoint, true)));
+                    } else {
+                        add_endpoint_as_missed(openapi_endpoint, grouping.1, &mut unmatched_endpoints);
+                    }
+                }
             }
         }
 
-        if is_found {
-            set_a.remove(index_a);
-        } else {
-            index_a += 1;
+        if !has_group {
+            if !endpoint_incompases_any(openapi_endpoint, nginx_endpoints) {
+                unmatched_endpoints.push(RefCell::new((openapi_endpoint, false)))
+            }
         }
     }
 
-    set_a.append(&mut set_b);
+    // filter for met endpoints
+    unmatched_endpoints = unmatched_endpoints
+        .iter()
+        .map(|x| x.clone())
+        .filter(|x| !x.borrow().1)
+        .collect();
 
-    set_a
+    let test_coverage = if relevant_endpoints.len() == 0 {
+        1.0
+    } else {
+        (relevant_endpoints.len() as f32 - unmatched_endpoints.len() as f32) / relevant_endpoints.len() as f32
+    };
+
+    let has_gateway_issues = has_gateway_issues(nginx_endpoints);
+
+    let endpoints_not_covered = unmatched_endpoints.iter().map(|x| x.borrow().0).collect();
+
+    Evaluation {
+        has_gateway_issues,
+        test_coverage,
+        endpoints_not_covered,
+    }
 }
 
-fn filter_consecutive_duplicates<T: PartialEq>(set: &mut Vec<T>) {
-    if set.is_empty() {
-        return;
-    }
-
-    let mut index = 0;
-
-    while index < set.len() - 1 {
-        let reduced_index = false;
-        while set.get(index) == set.get(index + 1) {
-            set.remove(index);
-        }
-        if !reduced_index {
-            index += 1;
+fn endpoint_incompases_any(
+    endpoint: &EndpointConfiguration,
+    possibly_incompased_endpoints: &Vec<EndpointConfiguration>,
+) -> bool {
+    // possible optimisation: remove incompased endpoint configuration from list after finding it
+    for possible_endpoint in possibly_incompased_endpoints {
+        if endpoint.incompases_endpoint(possible_endpoint) {
+            return true;
         }
     }
+    false
+}
+
+fn get_endpoints_for_diff<'a>(
+    pre_merge_endpoints: &Option<Vec<EndpointConfiguration>>,
+    post_merge_endpoints: &'a Vec<EndpointConfiguration>,
+) -> HashSet<&'a EndpointConfiguration> {
+    let mut relevant_endpoints = HashSet::new();
+    for post_endpoint in post_merge_endpoints {
+        relevant_endpoints.insert(post_endpoint);
+    }
+    match pre_merge_endpoints {
+        Some(pre_merge_endpoints) => {
+            for pre_endpoint in pre_merge_endpoints {
+                relevant_endpoints.take(pre_endpoint);
+            }
+        }
+        _ => (),
+    }
+    relevant_endpoints
+}
+
+fn add_endpoint_as_missed<'a>(
+    endpoint: &'a EndpointConfiguration,
+    grouping_endpoints: &mut Vec<RefCell<(&'a EndpointConfiguration, bool)>>,
+    unmatched_endpoints: &mut Vec<RefCell<(&'a EndpointConfiguration, bool)>>,
+) {
+    let endpoint = RefCell::new((endpoint, false));
+    grouping_endpoints.push(endpoint.clone());
+    unmatched_endpoints.push(endpoint.clone());
+}
+
+fn has_gateway_issues(nginx_endpoints: &Vec<EndpointConfiguration>) -> bool {
+    let gateway_issues = nginx_endpoints.iter().filter(|x| x.status_code == 502).count();
+    gateway_issues > 40 || gateway_issues > nginx_endpoints.len() / 4
+}
+
+pub struct Evaluation<'a> {
+    pub has_gateway_issues: bool,
+    pub test_coverage: f32,
+    pub endpoints_not_covered: Vec<&'a EndpointConfiguration>,
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
+    use std::{collections::HashSet, str::FromStr, sync::Arc};
+
+    use float_eq::assert_float_eq;
+
     use crate::{
-        evaluator::compare::filter_consecutive_duplicates,
-        models::{Endpoint, Method},
+        models::{EndpointConfiguration, Grouping, Method, OpenapiPath},
+        utils::test::create_mock_runtime,
     };
 
-    use super::compare_endpoints;
+    use super::{endpoint_incompases_any, evaluate, has_gateway_issues};
 
-    fn create_endpoint_a() -> Endpoint {
-        Endpoint::new(Method::GET, String::from("/"), 200)
+    fn create_endpoint_a() -> EndpointConfiguration {
+        EndpointConfiguration::new(Method::GET, "/a", 200, Arc::new(create_mock_runtime()), false).unwrap()
     }
 
-    fn create_endpoint_b() -> Endpoint {
-        Endpoint::new(Method::POST, String::from("/"), 200)
+    fn create_endpoint_b() -> EndpointConfiguration {
+        EndpointConfiguration::new(Method::GET, "/b", 200, Arc::new(create_mock_runtime()), false).unwrap()
     }
 
-    fn create_endpoint_c() -> Endpoint {
-        Endpoint::new(Method::POST, String::from("/99"), 200)
-    }
-
-    fn create_endpoint_d() -> Endpoint {
-        Endpoint::new(Method::GET, String::from("/99"), 201)
+    fn create_endpoint_c() -> EndpointConfiguration {
+        EndpointConfiguration::new(Method::POST, "/c", 200, Arc::new(create_mock_runtime()), false).unwrap()
     }
 
     #[test]
-    fn flags_equal_sets_same_order_as_right() {
-        let set_a = vec![
-            create_endpoint_a(),
-            create_endpoint_b(),
-            create_endpoint_c(),
-            create_endpoint_d(),
-        ];
+    fn evaluate_covers_simplest_test_coverage_case() {
+        let openapi_endpoints = vec![create_endpoint_a(), create_endpoint_b(), create_endpoint_c()];
+        let nginx_endpoints = vec![create_endpoint_a(), create_endpoint_b()];
 
-        let set_b = vec![
-            create_endpoint_a(),
-            create_endpoint_b(),
-            create_endpoint_c(),
-            create_endpoint_d(),
-        ];
+        let evaluation = evaluate(&openapi_endpoints, &None, &nginx_endpoints, &HashSet::new());
 
-        assert_eq!(compare_endpoints(&set_a, &set_b).len(), 0);
+        assert_float_eq!(evaluation.test_coverage, 2.0 / 3.0, abs <= 0.001);
     }
 
     #[test]
-    fn flags_equal_sets_different_order_as_right() {
-        let set_a = vec![
-            create_endpoint_d(),
-            create_endpoint_b(),
-            create_endpoint_c(),
-            create_endpoint_a(),
-        ];
+    fn evaluate_gives_full_coverage_when_no_wanted_and_no_provided() {
+        let openapi_endpoints = vec![];
+        let nginx_endpoints = vec![];
 
-        let set_b = vec![
-            create_endpoint_b(),
-            create_endpoint_a(),
-            create_endpoint_c(),
-            create_endpoint_d(),
-        ];
-
-        assert_eq!(compare_endpoints(&set_a, &set_b).len(), 0);
+        let evaluation = evaluate(&openapi_endpoints, &None, &nginx_endpoints, &HashSet::new());
+        assert_float_eq!(evaluation.test_coverage, 1.0, abs <= 0.001);
     }
 
     #[test]
-    fn flags_different_lengths_as_incorrect() {
-        let set_a = vec![create_endpoint_a(), create_endpoint_b(), create_endpoint_c()];
+    fn evaluate_gives_zero_if_no_nginx_endpoint() {
+        let openapi_endpoints = vec![create_endpoint_a()];
+        let nginx_endpoints = vec![];
 
-        let set_b = vec![
-            create_endpoint_a(),
-            create_endpoint_b(),
-            create_endpoint_c(),
-            create_endpoint_d(),
-        ];
-
-        assert_ne!(compare_endpoints(&set_a, &set_b).len(), 0);
-        assert_ne!(compare_endpoints(&set_b, &set_a).len(), 0);
+        let evaluation = evaluate(&openapi_endpoints, &None, &nginx_endpoints, &HashSet::new());
+        assert_float_eq!(evaluation.test_coverage, 0.0, abs <= 0.001);
     }
 
     #[test]
-    fn flags_different_sets_as_incorrect() {
-        let set_a = vec![create_endpoint_a(), create_endpoint_b(), create_endpoint_c()];
+    fn evaluate_groups_two_endpoints() {
+        let openapi_endpoints = vec![create_endpoint_a(), create_endpoint_b(), create_endpoint_c()];
+        let nginx_endpoints = vec![create_endpoint_a(), create_endpoint_b()];
+        let grouping = Grouping::new(
+            vec![Method::GET, Method::POST],
+            vec![200],
+            OpenapiPath::from_str("/{foo}").unwrap(),
+            false,
+        );
+        let mut groupings = HashSet::new();
+        groupings.insert(grouping);
 
-        let set_b = vec![create_endpoint_a(), create_endpoint_b(), create_endpoint_d()];
+        let evaluation = evaluate(&openapi_endpoints, &None, &nginx_endpoints, &groupings);
 
-        assert_ne!(compare_endpoints(&set_a, &set_b).len(), 0);
-        assert_ne!(compare_endpoints(&set_b, &set_a).len(), 0);
+        assert_float_eq!(evaluation.test_coverage, 1.0, abs <= 0.001);
     }
 
     #[test]
-    fn specifies_all_different_endpoints() {
-        let set_a = vec![create_endpoint_a(), create_endpoint_b(), create_endpoint_c()];
-
-        let set_b = vec![create_endpoint_a(), create_endpoint_b(), create_endpoint_d()];
-        assert!(compare_endpoints(&set_a, &set_b)
-            .iter()
-            .any(|x| *x == create_endpoint_d()));
-        assert!(compare_endpoints(&set_a, &set_b)
-            .iter()
-            .any(|x| *x == create_endpoint_c()));
+    fn internal_incompases_all_check_matches_base_case() {
+        let endpoint = create_endpoint_a();
+        let possibly_incompased_endpoints = vec![create_endpoint_a()];
+        assert!(endpoint_incompases_any(&endpoint, &possibly_incompased_endpoints))
     }
 
     #[test]
-    fn diff_takes_duplicates_into_account() {
-        let set_a = vec![
-            create_endpoint_a(),
-            create_endpoint_a(),
-            create_endpoint_a(),
-            create_endpoint_a(),
-            create_endpoint_b(),
-        ];
-
-        let set_b = vec![create_endpoint_a(), create_endpoint_b()];
-        assert_eq!(compare_endpoints(&set_a, &set_b).len(), 0);
-        assert_eq!(compare_endpoints(&set_b, &set_a).len(), 0);
+    fn internal_incompases_all_check_functions_for_sized_arrays() {
+        let endpoint = create_endpoint_c();
+        let possibly_incompased_endpoints = vec![create_endpoint_a(), create_endpoint_b()];
+        assert!(!endpoint_incompases_any(&endpoint, &possibly_incompased_endpoints))
     }
 
     #[test]
-    fn filter_leaves_regular_vecs_unchanged() {
-        let mut set_a = vec![1, 2, 3, 4, 5];
-        filter_consecutive_duplicates(&mut set_a);
-
-        assert_eq!(set_a, vec![1, 2, 3, 4, 5]);
+    fn internal_incompases_all_check_returns_false_for_empty_possibilities() {
+        let endpoint = create_endpoint_a();
+        let possibly_incompased_endpoints = vec![];
+        assert!(!endpoint_incompases_any(&endpoint, &possibly_incompased_endpoints))
     }
 
     #[test]
-    fn filter_keeps_one_of_duplicates() {
-        let mut set_a: Vec<u32> = vec![1, 1];
-        filter_consecutive_duplicates(&mut set_a);
+    fn correctly_asserts_gateway_issues() {
+        let nginx_endpoints =
+            vec![EndpointConfiguration::new(Method::GET, "/", 502, Arc::new(create_mock_runtime()), false).unwrap()];
 
-        assert_eq!(set_a, vec![1]);
-    }
-
-    #[test]
-    fn filter_works_with_empty_list() {
-        let mut set_a: Vec<u32> = vec![];
-        filter_consecutive_duplicates(&mut set_a);
-
-        assert_eq!(set_a, vec![] as Vec<u32>);
-    }
-
-    #[test]
-    fn filters_consecutive_duplicates() {
-        let mut set_a = vec![1, 2, 2, 3, 4, 5];
-        filter_consecutive_duplicates(&mut set_a);
-
-        assert_eq!(set_a, vec![1, 2, 3, 4, 5]);
+        assert!(has_gateway_issues(&nginx_endpoints));
     }
 }
