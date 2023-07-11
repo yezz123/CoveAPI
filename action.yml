@@ -1,15 +1,109 @@
 name: 'CoveAPI'
 description: 'Openapi testing coverage for integration tests'
+author: 'Yasser Tahiri'
+branding:
+  icon: 'activity'
+  color: 'orange'
 inputs:
   stage:
-    description: 'The stage of the pipeline'
+    description: 'Preperation or evaluation mode'
     required: true
     default: 'evaluation'
+  openapi-source:
+    description: 'Path or URL of openapi file JSON or YAML'
+    required: false
+  instance-url:
+    description: 'URL of application that will be tested'
+    required: false
+  account-for-security-forbidden:
+    description: 'Take security tags of spec into account and require all 403 cases to be tested'
+    required: false
+  account-for-security-unautorized:
+    description: 'Take security tags of spec into account and require all 401 cases to be tested'
+    required: false
+  debug:
+    description: 'Debugging mode'
+    required: false
+  test-coverage:
+    description: 'Percentage of endpoints that should be covered to pass this stage'
+    required: false
+  port:
+    description: 'Port for coveapi to listen on'
+    required: false
+  services:
+    description: 'A mapping for multiple services with different specs and basepaths'
+    required: false
+  only-account-for-pr:
+    description: 'Indicates if only the changes of a PR should be taken into account when available'
+    required: false
+  groupings:
+    description: 'Allows for ignoring or grouping of specific endpoints'
+    required: false
 runs:
   using: "composite"
   steps:
-    - run: echo Hello World!
-      shell: bash
-
-    - run: echo Mode ${{inputs.stage}}
-      shell: bash
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - shell: bash
+      run: |
+        if [[ "${{inputs.stage}}" != "evaluation" && "${{inputs.stage}}" != "preperation" ]]; then
+            echo "Please provide a stage name of either \"preperation\" or \"evaluation\""
+            exit 1
+        fi
+    - shell: bash
+      run: |
+        if [[ "${{inputs.stage}}" = "preperation" ]]; then
+            docker network create coveapi
+            for line in $(docker ps -q); do
+                docker network connect coveapi $line;
+            done
+            COVEAPI_APP_BASE_URL=${{inputs.instance-url}}
+            if [[ "${{inputs.services}}" = "" ]]; then
+                if [[ "${{inputs.port}}" = "" ]]; then
+                    COVEAPI_PORT="-p 13750:13750"
+                else
+                    COVEAPI_PORT="-p ${{inputs.port}}:${{inputs.port}}"
+                fi
+                COVEAPI_MAPPING=""
+                if [[ "$GITHUB_BASE_REF" != "" ]]; then
+                    COVEAPI_IS_MERGE="1"
+                    if [[ -f "${{inputs.openapi-source}}" ]]; then
+                        git show ${{github.event.pull_request.base.sha}}:${{inputs.openapi-source}} > ${{inputs.openapi-source}}.coveapi.old
+                    fi
+                else
+                    COVEAPI_IS_MERGE="0"
+                fi
+            else
+                COVEAPI_PORT="$(echo "${{inputs.services}}" | sed -r 's/([^;]|\\;)*;([^;]|\\;)*; ([0-9]+)\;/-p \3:\3/g' | sed 's/localhost/172.17.0.1/g' | tr '\n' ' ')"
+                COVEAPI_MAPPING="${{inputs.services}}"
+                COVEAPI_MAPPING="${COVEAPI_MAPPING//$'\n'/COVEAPI_LINE_SEPERATOR}"
+                COVEAPI_MAPPING="${COVEAPI_MAPPING//localhost/172.17.0.1}"
+                if [[ "$GITHUB_BASE_REF" != "" ]]; then
+                    COVEAPI_IS_MERGE="1"
+                    for spec in $(echo $COVEAPI_MAPPING | sed -r 's/([^;]|\\;)*;\W?(([^;]|\\;)*); ([0-9]+)\;/\2 /g'); do
+                        if [[ -f "$spec" ]]; then
+                            git show ${{github.event.pull_request.base.sha}}:$spec > $spec.coveapi.old
+                        fi
+                    done
+                else
+                    COVEAPI_IS_MERGE="0"
+                fi
+            fi
+            docker run --env COVEAPI_DEBUG="${{inputs.debug}}" --env COVEAPI_APP_BASE_URL="${COVEAPI_APP_BASE_URL/localhost/172.17.0.1}" --env COVEAPI_OPENAPI_SOURCE="${{inputs.openapi-source}}" --env COVEAPI_ACCOUNT_FOR_FORBIDDEN="${{inputs.account-for-security-forbidden}}" --env COVEAPI_ACCOUNT_FOR_UNAUTORIZED="${{inputs.account-for-security-unautorized}}" --env COVEAPI_TEST_COVERAGE="${{inputs.test-coverage}}" --env COVEAPI_PORT="${{inputs.port}}" --volume $PWD:/repo $COVEAPI_PORT --env COVEAPI_MAPPING="$COVEAPI_MAPPING" --env COVEAPI_IS_MERGE="$COVEAPI_IS_MERGE" --env COVEAPI_ONLY_ACCOUNT_MERGE="${{inputs.only-account-for-pr}}" --env COVEAPI_GROUPINGS="${{inputs.groupings}}" --network coveapi --name coveapi -d grossamos/coveapi:v1.0.0
+            sleep 1
+            docker logs coveapi
+            exit $(docker container inspect --format '{{.State.ExitCode}}' coveapi)
+        fi
+    - shell: bash
+      run: |
+        if [[ "${{inputs.stage}}" = "evaluation" ]]; then
+            if [[ "${{inputs.openapi-source}}" != "" || "${{inputs.instance-url}}" != "" || "${{inputs.test-coverage}}" != "" || "${{inputs.debug}}" != "" || "${{inputs.account-for-security-unautorized}}" != "" || "${{inputs.account-for-security-forbidden}}" != "" || "${{inputs.services}}" != "" ]]; then
+                echo "Please configure coveapi in the preperation stage and do not add configuration parameters (outside of stage) here"
+                exit 1
+            fi
+            docker exec coveapi nginx -s stop
+            sleep 1
+            docker logs coveapi
+            exit $(docker container inspect --format '{{.State.ExitCode}}' coveapi)
+        fi
