@@ -1,0 +1,15 @@
+name: 'CoveAPI'
+description: 'Openapi testing coverage for integration tests'
+inputs:
+  stage:
+    description: 'The stage of the pipeline'
+    required: true
+    default: 'evaluation'
+runs:
+  using: "composite"
+  steps:
+    - run: echo Hello World!
+      shell: bash
+
+    - run: echo Mode ${{inputs.stage}}
+      shell: bash
