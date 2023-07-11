@@ -45,7 +45,7 @@ Please remember to replace the location of your OpenAPI spec and the instance UR
 
 ```yaml
 - name: Initialize CoveAPI
-  uses: yezz123/CoveAPI@v1.0.0
+  uses: yezz123/CoveAPI@v2.0.0
   with:
     stage: "preparation"
     openapi-source: "docs/swagger.json"
@@ -66,7 +66,7 @@ By following these steps, CoveAPI will be properly prepared for integration test
 Place the CoveAPI evaluation stage somewhere after your integration tests have run.
 
 ```yaml
-  - uses: yezz123/CoveAPI@v1.0.0
+  - uses: yezz123/CoveAPI@v2.0.0
     name: Evaluate CoveAPI
     with:
       stage: "evaluation"
