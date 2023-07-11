@@ -1,10 +1,30 @@
-![Cover](docs/img/cover.png)
+<p align="center">
+<a href="https://github.com/yezz123/CoveAPI" target="_blank">
+    <img src="https://raw.githubusercontent.com/yezz123/CoveAPI/main/docs/img/cover.png">
+</a>
+<p align="center">
+    <em>Ready-to-use OpenAPI test coverage analysis tool that helps teams improve integration</em>
+</p>
+<p align="center">
+<a href="https://github.com/yezz123/CoveAPI/actions/workflows/ci.yml" target="_blank">
+    <img src="https://github.com/yezz123/CoveAPI/actions/workflows/ci.yml/badge.svg" alt="lint">
+</a>
+<a href="https://codecov.io/gh/yezz123/CoveAPI" > 
+    <img src="https://codecov.io/gh/yezz123/CoveAPI/branch/main/graph/badge.svg"/> 
+</a>
+<a href="https://github.com/yezz123/CoveAPI/blob/main/LICENSE" > 
+    <img src="https://img.shields.io/github/license/yezz123/CoveAPI.svg"/> 
+</a>
+<a href="https://github.com/yezz123/CoveAPI" > 
+    <img src="https://img.shields.io/github/repo-size/yezz123/coveapi"/> 
+</a>
+</p>
+</p>
 
 CoveAPI is an advanced test coverage analysis tool based on the OpenAPI standard. It offers a comprehensive solution for teams to effectively measure and improve their integration test coverage within CI/CD pipelines.
 
 With CoveAPI, teams can easily establish and enforce specific coverage thresholds, ensuring that critical parts of their application are thoroughly tested. By integrating CoveAPI into their existing CI/CD workflows, teams can automatically track and monitor test coverage metrics, making it easier to identify areas that require additional testing.
 
-**NOTE: CoveAPI is still under heavy development and not yet stable or even feature complete**
 
 ## Usage
 
