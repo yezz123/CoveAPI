@@ -17,6 +17,7 @@ theme:
       toggle:
           icon: material/lightbulb-outline
           name: Switch to light mode
+  logo: img/logo.png
   favicon: img/logo.png
   features:
   - header.autohide
