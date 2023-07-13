@@ -1,4 +1,4 @@
-use CoveAPI::{initialize_coveapi, run_eval, run_nginx};
+use coveapi::{initialize_coveapi, run_eval, run_nginx};
 
 fn main() {
     let (config, openapi_endpoints, pre_merge_endpoints) = initialize_coveapi();
