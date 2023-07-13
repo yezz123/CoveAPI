@@ -22,7 +22,7 @@ Modify the `openapi-source` parameter to point to the location of your OpenAPI s
 
 ```yaml
 - name: Initialize CoveAPI
-  uses: yezz123/CoveAPI@v2.0.0
+  uses: yezz123/coveapi@2.1.0
   with:
     stage: "preparation"
     openapi-source: "docs/swagger.json"
@@ -49,7 +49,7 @@ Make sure to update the `collection` and `environment` parameters to match your 
 Add the Evaluation Stage to your pipeline. This stage evaluates your tests after running Newman and fails the pipeline if the configured test coverage threshold is not met. No additional configuration is required for this stage.
 
 ```yaml
-- uses: yezz123/CoveAPI@v2.0.0
+- uses: yezz123/coveapi@2.1.0
   name: Evaluate CoveAPI Test Coverage
   with:
     stage: "evaluation"
@@ -75,7 +75,7 @@ jobs:
       - name: Install Newman
         run: npm install -g newman
       - name: Initialize CoveAPI
-        uses: yezz123/CoveAPI@v2.0.0
+        uses: yezz123/coveapi@2.1.0
         with:
           stage: "preparation"
           openapi-source: "docs/swagger.json"
@@ -86,7 +86,7 @@ jobs:
         with:
           collection: tests/coveapi-example.postman_collection.json
           environment: tests/coveapi-example-ci.postman_environment.json
-      - uses: yezz123/CoveAPI@v2.0.0
+      - uses: yezz123/coveapi@2.1.0
         name: Evaluate CoveAPI Test Coverage
         with:
           stage: "evaluation"
