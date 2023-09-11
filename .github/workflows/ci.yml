@@ -23,14 +23,14 @@ jobs:
 
     runs-on: ${{ matrix.os }}-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: cache rust
         uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.os }}-v1
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: nightly
@@ -61,7 +61,7 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: install rust stable
         uses: dtolnay/rust-toolchain@stable
