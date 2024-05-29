@@ -9,10 +9,10 @@ readme = "README.md"
 
 [dependencies]
 lazy_static = "1.4.0"
-regex = "1.9"
+regex = "1.10.4"
 json = "0.12.4"
-url = "2.2.2"
-yaml-rust = "0.4"
+url = "2.5.0"
+yaml-rust = "0.4.5"
 linked-hash-map = "0.5.6"
-float_eq = "1.0.0"
-reqwest = { version = "0.11", features = ["blocking", "json"], default-features = false }
+float_eq = "1.0.1"
+reqwest = { version = "0.12.4", features = ["blocking", "json"], default-features = false }
