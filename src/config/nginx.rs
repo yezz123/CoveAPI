@@ -45,7 +45,7 @@ fn build_runtime_config(runtime: &Runtime) -> String {
     }
     ";
     let config = &String::from(BASE_CONFIGURATION_STRUCTURE);
-    let config = replace_port_number(&config, runtime.port);
+    let config = replace_port_number(config, runtime.port);
     let config = replace_url(&config, runtime.app_base_url.as_str());
     config
 }
@@ -58,12 +58,10 @@ fn open_config_file(path: &Path, for_writing: bool) -> Result<File, Error> {
         .open(path)
     {
         Ok(file) => Ok(file),
-        Err(why) => {
-            return Err(Error::UnexpectedIOIssue(format!(
-                "issue opening file {:?} due to: {}",
-                path, why
-            )))
-        }
+        Err(why) => Err(Error::UnexpectedIOIssue(format!(
+            "issue opening file {:?} due to: {}",
+            path, why
+        ))),
     }
 }
 
@@ -140,9 +138,9 @@ mod tests {
 
         let nginx_path = Path::new("./dump/nginx.conf");
         let config = create_mock_config();
-        configure_nginx_file(&config, &nginx_path).unwrap();
+        configure_nginx_file(&config, nginx_path).unwrap();
         let mut conf_string = String::from("");
-        File::open(&nginx_path)
+        File::open(nginx_path)
             .unwrap()
             .read_to_string(&mut conf_string)
             .unwrap();

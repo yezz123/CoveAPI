@@ -95,13 +95,7 @@ fn parse_nginx_line(runtimes: &Vec<Arc<Runtime>>, line: &str) -> Result<Endpoint
         None => return Err(Error::UnknownInternalError("no port number nginx logs".to_string())),
     };
 
-    Ok(EndpointConfiguration::new(
-        method,
-        &path,
-        status,
-        find_runtime_by_port(runtimes, port)?,
-        false,
-    )?)
+    EndpointConfiguration::new(method, &path, status, find_runtime_by_port(runtimes, port)?, false)
 }
 
 fn find_runtime_by_port(runtimes: &Vec<Arc<Runtime>>, port: u16) -> Result<Arc<Runtime>, Error> {
@@ -244,7 +238,7 @@ mod test {
     #[test]
     fn parses_full_access_log() {
         let path = Path::new("./dump/access.log");
-        assert_eq!(parse_access_log(&generate_runtimes(), &path).unwrap().len(), 9);
+        assert_eq!(parse_access_log(&generate_runtimes(), path).unwrap().len(), 9);
     }
 
     #[test]

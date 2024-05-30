@@ -1,5 +1,5 @@
 pub fn format_basepath(basepath: &str) -> &str {
-    if basepath.ends_with("/") {
+    if basepath.ends_with('/') {
         &basepath[0..basepath.len() - 1]
     } else {
         basepath

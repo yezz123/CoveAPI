@@ -80,7 +80,7 @@ impl CoveAPIConfig {
             };
             let port_str = match env_vars.get(ENV_VAR_PORT) {
                 Some(port_str) => {
-                    if port_str == "" {
+                    if port_str.is_empty() {
                         None
                     } else {
                         Some(port_str.as_str())
@@ -132,7 +132,7 @@ impl CoveAPIConfig {
 
 fn key_exists_and_is_not_empty(key: &str, env_vars: &HashMap<String, String>) -> bool {
     match env_vars.get(key) {
-        Some(content) => content != "",
+        Some(content) => !content.is_empty(),
         None => false,
     }
 }
@@ -147,9 +147,9 @@ fn parse_complex_mapping(mapping_str: &str) -> Result<Vec<Arc<Runtime>>, Error> 
         }
         let index = 0;
 
-        let (app_base_url_str, index) = parse_untill_mapping_subdelimiter(index, &line)?;
-        let (openapi_source_str, index) = parse_untill_mapping_subdelimiter(index, &line)?;
-        let (port_str, _) = parse_untill_mapping_subdelimiter(index, &line)?;
+        let (app_base_url_str, index) = parse_untill_mapping_subdelimiter(index, line)?;
+        let (openapi_source_str, index) = parse_untill_mapping_subdelimiter(index, line)?;
+        let (port_str, _) = parse_untill_mapping_subdelimiter(index, line)?;
 
         let app_base_url_str = replace_escaped_sequences(app_base_url_str);
         let openapi_source_str = replace_escaped_sequences(openapi_source_str);
@@ -157,7 +157,7 @@ fn parse_complex_mapping(mapping_str: &str) -> Result<Vec<Arc<Runtime>>, Error> 
 
         runtimes.push(parse_runtime(&openapi_source_str, &app_base_url_str, Some(&port_str))?);
     }
-    if runtimes.len() == 0 {
+    if runtimes.is_empty() {
         return Err(Error::MissingMapping);
     }
     if !check_runtime_compatability(&runtimes) {
@@ -176,10 +176,10 @@ fn parse_grouping(grouping_str: &str) -> Result<HashSet<Grouping>, Error> {
         }
 
         let index = 0;
-        let (path_str, index) = parse_untill_mapping_subdelimiter(index, &line)?;
-        let (methods_str, index) = parse_untill_mapping_subdelimiter(index, &line)?;
-        let (status_str, index) = parse_untill_mapping_subdelimiter(index, &line)?;
-        let (is_ignore_group_str, _) = parse_untill_mapping_subdelimiter(index, &line)?;
+        let (path_str, index) = parse_untill_mapping_subdelimiter(index, line)?;
+        let (methods_str, index) = parse_untill_mapping_subdelimiter(index, line)?;
+        let (status_str, index) = parse_untill_mapping_subdelimiter(index, line)?;
+        let (is_ignore_group_str, _) = parse_untill_mapping_subdelimiter(index, line)?;
 
         groupings.insert(parse_grouping_strings(
             path_str,
@@ -192,7 +192,7 @@ fn parse_grouping(grouping_str: &str) -> Result<HashSet<Grouping>, Error> {
     Ok(groupings)
 }
 
-fn parse_untill_mapping_subdelimiter<'a>(index: usize, base: &'a str) -> Result<(&'a str, usize), Error> {
+fn parse_untill_mapping_subdelimiter(index: usize, base: &str) -> Result<(&str, usize), Error> {
     let mut final_index = index;
     let mut is_escaped = false;
     while is_escaped
@@ -202,11 +202,7 @@ fn parse_untill_mapping_subdelimiter<'a>(index: usize, base: &'a str) -> Result<
             None => false,
         }
     {
-        if base.get(final_index..final_index + 1) == Some("\\") {
-            is_escaped = true;
-        } else {
-            is_escaped = false;
-        }
+        is_escaped = base.get(final_index..final_index + 1) == Some("\\");
         final_index += 1;
     }
     final_index += 1;
@@ -264,21 +260,21 @@ fn parse_runtime(
 
 fn get_bool_env_var(key: &str, env_vars: &HashMap<String, String>) -> bool {
     match env_vars.get(key) {
-        Some(bool_var) => parse_bool(&bool_var),
+        Some(bool_var) => parse_bool(bool_var),
         None => false,
     }
 }
 
 fn parse_bool(bool_str: &str) -> bool {
     // the "nope" is just a fun easter egg
-    bool_str != "0" && bool_str != "" && bool_str != "false" && bool_str != "nope"
+    bool_str != "0" && !bool_str.is_empty() && bool_str != "false" && bool_str != "nope"
 }
 
 fn translate_test_coverage(coverage_str: &str) -> Result<f32, Error> {
     if coverage_str.trim() == "" {
         return Ok(DEFAULT_TEST_COVERAGE);
     }
-    let mut coverage = if coverage_str.trim().ends_with("%") {
+    let mut coverage = if coverage_str.trim().ends_with('%') {
         match coverage_str[0..coverage_str.len() - 1].parse() {
             Ok(coverage) => coverage,
             Err(_) => return Err(Error::InvalidTestCoverage),
@@ -296,7 +292,7 @@ fn translate_test_coverage(coverage_str: &str) -> Result<f32, Error> {
         println!("Warning: test coverage is set to 0%");
     }
 
-    if coverage > 1.0 || coverage < 0.0 {
+    if !(0.0..=1.0).contains(&coverage) {
         Err(Error::InvalidTestCoverage)
     } else {
         Ok(coverage)
@@ -311,7 +307,7 @@ fn parse_grouping_strings(
 ) -> Result<Grouping, Error> {
     let path = OpenapiPath::from_str(path_str.trim())?;
     let mut methods = vec![];
-    for method_str in methods_str.split(",") {
+    for method_str in methods_str.split(',') {
         let method = match Method::from_str(method_str.trim()) {
             Some(method) => method,
             None => return Err(Error::InvalidMethodString(method_str.to_string())),
@@ -320,7 +316,7 @@ fn parse_grouping_strings(
     }
 
     let mut status = vec![];
-    for single_status_str in status_str.split(",") {
+    for single_status_str in status_str.split(',') {
         let single_status = match single_status_str.trim().parse() {
             Ok(single_status) => single_status,
             Err(_) => return Err(Error::InvalidStatusCode(single_status_str.to_string())),

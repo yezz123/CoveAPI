@@ -5,7 +5,7 @@ use crate::models::EndpointConfiguration;
 use super::print_debug_message;
 
 pub fn read_file_to_string_or_err<E>(path: &Path, err: E) -> Result<String, E> {
-    let mut file = match File::open(&path) {
+    let mut file = match File::open(path) {
         Ok(file) => file,
         Err(why) => {
             print_debug_message(why.to_string());
