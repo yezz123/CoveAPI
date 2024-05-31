@@ -13,45 +13,92 @@ env:
 
 jobs:
 
-  test-os:
-    name: test on ${{ matrix.os }}
-
+  test-linux:
+    name: test rust-${{ matrix.rust-version }} on linux
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu]
+        rust-version: [stable, nightly]
 
-    runs-on: ${{ matrix.os }}-latest
+    runs-on: ubuntu-latest
+
+    env:
+      RUNS_ON: ubuntu-latest
+      RUST_VERSION: ${{ matrix.rust-version }}
+
     steps:
-      - uses: actions/checkout@v3
+    - uses: actions/checkout@v3
 
-      - name: cache rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          key: ${{ matrix.os }}-v1
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust-version }}
 
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: nightly
-          override: true
+    - id: cache-rust
+      uses: Swatinem/rust-cache@v2
+      with:
+        prefix-key: "v1-rust"
 
-      - name: Build
-        run: cargo build --verbose
-      - name: Run tests
-        run: cargo test --verbose
-        env:
-          CARGO_INCREMENTAL: '0'
-          RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-          RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-      - name: rust-grcov
-        uses: actions-rs/grcov@v0.1.5
-      - name: Codecov
-        uses: codecov/codecov-action@v3.1.0
-        with:
+    - run: cargo install rustfilt coverage-prepare cargo-careful
+      if: steps.cache-rust.outputs.cache-hit != 'true'
+
+    - run: rustup component add llvm-tools-preview
+
+    - name: Build
+      run: cargo build --verbose
+
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+
+    - name: Generate code coverage
+      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+          token: ${{ secrets.CODECOV_TOKEN }} # not required for public repos
+          files: lcov.info
+
+
+  test-macos:
+    name: test on ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runs-on: [macos-latest]
+
+    runs-on: ${{ matrix.runs-on }}
+
+    env:
+      RUNS_ON: ${{ matrix.runs-on }}
+      RUST_VERSION: stable
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - uses: dtolnay/rust-toolchain@stable
+
+    - id: cache-rust
+      uses: Swatinem/rust-cache@v2
+
+    - run: cargo install rustfilt coverage-prepare
+      if: steps.cache-rust.outputs.cache-hit != 'true'
+
+    - run: rustup component add llvm-tools-preview
+
+    - name: Build
+      run: cargo build --verbose
+
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@cargo-llvm-cov
+
+    - name: Generate code coverage
+      run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
           token: ${{ secrets.CODECOV_TOKEN }}
-          verbose: true
-          fail_ci_if_error: true
+          files: lcov.info
 
   lint:
     runs-on: ubuntu-latest
@@ -82,7 +129,7 @@ jobs:
   # https://github.com/marketplace/actions/alls-green#why used for branch protection checks
   check:
     if: always()
-    needs: [test-os, lint]
+    needs: [test-linux, test-macos, lint]
     runs-on: ubuntu-latest
     steps:
       - name: Decide whether the needed jobs succeeded or failed

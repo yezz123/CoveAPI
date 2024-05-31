@@ -110,7 +110,7 @@ pub fn run_eval(
 
     println!("Test Coverage: {}%", evaluation.test_coverage * 100.0);
 
-    if evaluation.endpoints_not_covered.len() > 0 {
+    if !evaluation.endpoints_not_covered.is_empty() {
         println!("The following endpoints were missed:");
         for endpoint in evaluation.endpoints_not_covered {
             println!("- {} {} {}", endpoint.path, endpoint.method, endpoint.status_code);

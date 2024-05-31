@@ -24,39 +24,29 @@ pub fn evaluate<'a>(
         for grouping in grouping_endpoints.iter_mut() {
             if grouping.0.incompases_endpoint_config(openapi_endpoint) {
                 has_group = true;
-                if grouping.1.len() >= 1 && grouping.1[0].borrow().1 {
+                if (!grouping.1.is_empty() && grouping.1[0].borrow().1) || grouping.0.is_ignore_group {
+                    grouping.1.push(RefCell::new((openapi_endpoint, true)));
+                } else if endpoint_incompases_any(openapi_endpoint, nginx_endpoints) {
+                    for endpoint in grouping.1.iter_mut() {
+                        let mut endpoint = endpoint.borrow_mut();
+                        endpoint.1 = true;
+                    }
                     grouping.1.push(RefCell::new((openapi_endpoint, true)));
                 } else {
-                    if grouping.0.is_ignore_group {
-                        grouping.1.push(RefCell::new((openapi_endpoint, true)));
-                    } else if endpoint_incompases_any(openapi_endpoint, nginx_endpoints) {
-                        for endpoint in grouping.1.iter_mut() {
-                            let mut endpoint = endpoint.borrow_mut();
-                            endpoint.1 = true;
-                        }
-                        grouping.1.push(RefCell::new((openapi_endpoint, true)));
-                    } else {
-                        add_endpoint_as_missed(openapi_endpoint, grouping.1, &mut unmatched_endpoints);
-                    }
+                    add_endpoint_as_missed(openapi_endpoint, grouping.1, &mut unmatched_endpoints);
                 }
             }
         }
 
-        if !has_group {
-            if !endpoint_incompases_any(openapi_endpoint, nginx_endpoints) {
-                unmatched_endpoints.push(RefCell::new((openapi_endpoint, false)))
-            }
+        if !has_group && !endpoint_incompases_any(openapi_endpoint, nginx_endpoints) {
+            unmatched_endpoints.push(RefCell::new((openapi_endpoint, false)));
         }
     }
 
     // filter for met endpoints
-    unmatched_endpoints = unmatched_endpoints
-        .iter()
-        .map(|x| x.clone())
-        .filter(|x| !x.borrow().1)
-        .collect();
+    unmatched_endpoints.retain(|x| !x.borrow().1);
 
-    let test_coverage = if relevant_endpoints.len() == 0 {
+    let test_coverage = if relevant_endpoints.is_empty() {
         1.0
     } else {
         (relevant_endpoints.len() as f32 - unmatched_endpoints.len() as f32) / relevant_endpoints.len() as f32
@@ -94,13 +84,10 @@ fn get_endpoints_for_diff<'a>(
     for post_endpoint in post_merge_endpoints {
         relevant_endpoints.insert(post_endpoint);
     }
-    match pre_merge_endpoints {
-        Some(pre_merge_endpoints) => {
-            for pre_endpoint in pre_merge_endpoints {
-                relevant_endpoints.take(pre_endpoint);
-            }
+    if let Some(pre_merge_endpoints) = pre_merge_endpoints {
+        for pre_endpoint in pre_merge_endpoints {
+            relevant_endpoints.take(pre_endpoint);
         }
-        _ => (),
     }
     relevant_endpoints
 }

@@ -12,19 +12,19 @@ pub fn configure_nginx(config: &CoveAPIConfig) -> Result<(), Error> {
     configure_nginx_file(config, Path::new("/etc/nginx/nginx.conf"))
 }
 
-fn replace_url(base: &String, url: &str) -> String {
+fn replace_url(base: &str, url: &str) -> String {
     base.replace("INSERT_URL_HERE", url)
 }
 
-fn replace_error_log(base: &String) -> String {
+fn replace_error_log(base: &str) -> String {
     base.replace("error_log  off;", "error_log  /var/log/nginx/error.log notice;")
 }
 
-fn replace_port_number(base: &String, port: u16) -> String {
+fn replace_port_number(base: &str, port: u16) -> String {
     base.replace("INSERT_PORT_HERE", &port.to_string())
 }
 
-fn replace_runtime_configurations(base: &String, runtimes: &Vec<Arc<Runtime>>) -> String {
+fn replace_runtime_configurations(base: &str, runtimes: &Vec<Arc<Runtime>>) -> String {
     let mut config_string = String::new();
     for runtime in runtimes {
         config_string.push_str(&build_runtime_config(runtime));
@@ -45,7 +45,7 @@ fn build_runtime_config(runtime: &Runtime) -> String {
     }
     ";
     let config = &String::from(BASE_CONFIGURATION_STRUCTURE);
-    let config = replace_port_number(&config, runtime.port);
+    let config = replace_port_number(config, runtime.port);
     let config = replace_url(&config, runtime.app_base_url.as_str());
     config
 }
@@ -58,12 +58,10 @@ fn open_config_file(path: &Path, for_writing: bool) -> Result<File, Error> {
         .open(path)
     {
         Ok(file) => Ok(file),
-        Err(why) => {
-            return Err(Error::UnexpectedIOIssue(format!(
-                "issue opening file {:?} due to: {}",
-                path, why
-            )))
-        }
+        Err(why) => Err(Error::UnexpectedIOIssue(format!(
+            "issue opening file {:?} due to: {}",
+            path, why
+        ))),
     }
 }
 
@@ -140,9 +138,9 @@ mod tests {
 
         let nginx_path = Path::new("./dump/nginx.conf");
         let config = create_mock_config();
-        configure_nginx_file(&config, &nginx_path).unwrap();
+        configure_nginx_file(&config, nginx_path).unwrap();
         let mut conf_string = String::from("");
-        File::open(&nginx_path)
+        File::open(nginx_path)
             .unwrap()
             .read_to_string(&mut conf_string)
             .unwrap();
@@ -166,7 +164,7 @@ mod tests {
             app_base_url: Url::from_str("http://example.com").unwrap(),
             port: 456,
         }));
-        let config_string = replace_runtime_configurations(&"INSERT_CONFIGURATIONS_HERE".to_string(), &config.runtimes);
+        let config_string = replace_runtime_configurations("INSERT_CONFIGURATIONS_HERE", &config.runtimes);
         assert!(config_string.contains("123"));
         assert!(config_string.contains("456"));
     }

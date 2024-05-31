@@ -64,7 +64,7 @@ impl OpenapiPath {
                     const EMPTY_NEXT_STRING: &str = "";
                     let next_string = match self.components.get(component_index + 1) {
                         Some(next_component) => match next_component {
-                            OpenapiPathComponent::Fixed(original_source) => &original_source,
+                            OpenapiPathComponent::Fixed(original_source) => original_source,
                             OpenapiPathComponent::Variable => EMPTY_NEXT_STRING,
                         },
                         None => EMPTY_NEXT_STRING,
@@ -106,7 +106,7 @@ impl FromStr for OpenapiPath {
         for character in s.chars() {
             if is_in_variable && character.to_string() == "}" {
                 is_in_variable = false;
-                if cached_component.len() > 0 {
+                if !cached_component.is_empty() {
                     path.push(OpenapiPathComponent::Fixed(cached_component.to_string()));
                     cached_component = String::new();
                 }
@@ -121,7 +121,7 @@ impl FromStr for OpenapiPath {
             }
         }
 
-        if current_component.len() > 0 {
+        if !current_component.is_empty() {
             // deal with opened brackets
             let infix = if is_in_variable { "{" } else { "" };
 
@@ -129,7 +129,7 @@ impl FromStr for OpenapiPath {
                 "{}{}{}",
                 cached_component, infix, current_component
             )));
-        } else if cached_component.len() > 0 {
+        } else if !cached_component.is_empty() {
             path.push(OpenapiPathComponent::Fixed(current_component.to_string()));
         }
 

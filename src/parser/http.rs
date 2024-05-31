@@ -38,6 +38,6 @@ pub fn fetch_openapi_endpoints_for_runtime(runtime: Arc<Runtime>) -> Result<Vec<
     match parse_json_doc(&openapi_spec, runtime.clone()) {
         Ok(endpoints) => Ok(endpoints),
         Err(Error::InvalidParseSyntax) => parse_yaml_doc(&openapi_spec, runtime.clone()),
-        Err(error) => return Err(error),
+        Err(error) => Err(error),
     }
 }

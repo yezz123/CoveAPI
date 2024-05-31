@@ -40,7 +40,7 @@ pub fn parse_json_doc(json_string: &str, runtime: Arc<Runtime>) -> Result<Vec<En
             _ => path.push_str(path_json.0),
         }
         if path.is_empty() {
-            path.push_str("/");
+            path.push('/');
         }
 
         for (method, method_json) in get_methods_from_path(path_json.1)?.into_iter() {
