@@ -50,8 +50,9 @@ jobs:
       run: cargo test --verbose
       env:
         CARGO_INCREMENTAL: '0'
-        RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-        RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
+
+    - run: coverage-prepare --ignore-filename-regex '/tests/' lcov $(find ../../target/debug/deps -regex '.*/main[^.]*')
+      working-directory: src
 
     - uses: codecov/codecov-action@v4
       with:
@@ -84,10 +85,8 @@ jobs:
 
     - run: rustup component add llvm-tools-preview
 
-    - run: cargo install rustfilt coverage-prepare cargo-careful
-      if: steps.cache-rust.outputs.cache-hit != 'true'
-
-    - run: rustup component add llvm-tools-preview
+    - run: coverage-prepare --ignore-filename-regex '/tests/' lcov $(find ../../target/debug/deps -regex '.*/main[^.]*')
+      working-directory: src
 
     - name: Build
       run: cargo build --verbose
@@ -96,8 +95,6 @@ jobs:
       run: cargo test --verbose
       env:
         CARGO_INCREMENTAL: '0'
-        RUSTFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
-        RUSTDOCFLAGS: '-Zprofile -Ccodegen-units=1 -Cinline-threshold=0 -Clink-dead-code -Coverflow-checks=off -Cpanic=abort -Zpanic_abort_tests'
 
     - uses: codecov/codecov-action@v4
       with:
