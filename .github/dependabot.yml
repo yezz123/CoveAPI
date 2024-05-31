@@ -13,5 +13,9 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    groups:
+      rust-packages:
+        patterns:
+          - "*"
     commit-message:
       prefix: ⬆
