@@ -19,3 +19,14 @@ updates:
           - "*"
     commit-message:
       prefix: ⬆
+  # pip
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      python-packages:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: ⬆
