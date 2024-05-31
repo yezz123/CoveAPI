@@ -42,6 +42,7 @@ impl Method {
     }
 }
 
+#[allow(clippy::should_implement_trait)]
 impl Method {
     pub fn from_str(method_str: &str) -> Option<Method> {
         match method_str.to_uppercase().as_str() {

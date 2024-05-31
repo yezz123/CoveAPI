@@ -384,9 +384,8 @@ mod test {
     fn can_catch_invalid_url() {
         let mut config_map = generate_config_map();
         config_map.insert(ENV_VAR_APP_BASE_URL.to_string(), String::from("jjjjjj"));
-        match CoveAPIConfig::from_raw(&config_map) {
-            Ok(_) => panic!("Should throw error here"),
-            Err(_) => (),
+        if CoveAPIConfig::from_raw(&config_map).is_ok() {
+            panic!("Should throw error here")
         }
     }
 
