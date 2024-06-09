@@ -153,7 +153,7 @@ jobs:
   # https://github.com/marketplace/actions/alls-green#why used for branch protection checks
   check:
     if: always()
-    needs: [test-linux, test-macos, lint]
+    needs: [test-linux, test-macos, lint, Docker]
     runs-on: ubuntu-latest
     steps:
       - name: Decide whether the needed jobs succeeded or failed
