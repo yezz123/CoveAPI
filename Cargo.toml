@@ -8,11 +8,11 @@ repository = "https://github.com/yezz123/CoveAPI.git"
 readme = "README.md"
 
 [dependencies]
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
 regex = "1.10.5"
 json = "0.12.4"
-url = "2.5.1"
+url = "2.5.2"
 yaml-rust = "0.4.5"
 linked-hash-map = "0.5.6"
 float_eq = "1.0.1"
-reqwest = { version = "0.12.4", features = ["blocking", "json"], default-features = false }
+reqwest = { version = "0.12.5", features = ["blocking", "json"], default-features = false }
