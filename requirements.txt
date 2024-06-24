@@ -35,5 +35,5 @@ six==1.16.0
 soupsieve==2.5
 typer[all]==0.12.3
 typer-cli==0.12.3
-urllib3==2.2.1
+urllib3==2.2.2
 watchdog==4.0.1
